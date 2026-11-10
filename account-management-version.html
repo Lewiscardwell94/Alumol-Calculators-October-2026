@@ -111,6 +111,18 @@
       font-weight: 700;
     }
 
+    .field-warning {
+      display: none;
+      color: #b42318;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+
+    .field-warning.is-visible {
+      display: block;
+    }
+
     input,
     select {
       width: 100%;
@@ -403,10 +415,6 @@
         </div>
 
         <article class="product-editor shared-editor">
-          <div class="editor-heading">
-            <strong>Shared assumptions</strong>
-            <span class="pill dark">Applied to both products</span>
-          </div>
           <div class="fields">
             <label>
               Currency
@@ -440,7 +448,8 @@
             </label>
             <label>
               Disposal cost per litre
-              <input id="sharedDisposalCost" type="number" min="0" step="0.01" value="1.50">
+              <input id="sharedDisposalCost" type="number" min="0.1" step="0.01" value="1.50" aria-describedby="disposalCostWarning">
+              <span class="field-warning" id="disposalCostWarning">Please enter a disposal cost of 0.10 or more per litre to run the calculator.</span>
             </label>
           </div>
         </article>
@@ -622,6 +631,7 @@
     ];
 
     const outputs = Object.fromEntries(outputIds.map((id) => [id, document.getElementById(id)]));
+    const disposalCostWarning = document.getElementById("disposalCostWarning");
 
     function numberFromInput(value) {
       const parsed = Number(value);
@@ -677,8 +687,22 @@
     }
 
     function update() {
+      const isValidDisposalCost = sharedInputs.disposalCost.value.trim() !== "" && numberFromInput(sharedInputs.disposalCost.value) >= 0.1;
+      disposalCostWarning.classList.toggle("is-visible", !isValidDisposalCost);
+      sharedInputs.disposalCost.setAttribute("aria-invalid", String(!isValidDisposalCost));
       const productA = readProduct("a");
       const productB = readProduct("b");
+      if (!isValidDisposalCost) {
+        outputs.summaryTitle.textContent = "Alumol Product vs Your Product";
+        outputs.nameA.textContent = productA.name;
+        outputs.nameB.textContent = productB.name;
+        outputIds.filter((id) => !["summaryTitle", "nameA", "nameB"].includes(id)).forEach((id) => {
+          outputs[id].textContent = "-";
+        });
+        outputs.annualSaving.parentElement.classList.remove("good");
+        outputs.lifetimeSaving.parentElement.classList.remove("good");
+        return;
+      }
       const resultA = calculate(productA, barrelLitres);
       const resultB = calculate(productB, barrelLitres);
       const annualSaving = resultB.annual - resultA.annual;
